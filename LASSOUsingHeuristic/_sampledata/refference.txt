@@ -1,0 +1,2 @@
+Datasets from "The Elements of Statistical Learning"
+http://statweb.stanford.edu/~tibs/ElemStatLearn/
