@@ -16,6 +16,6 @@
         r.CorrectDataVector = mat.GetCorrectDataVector()
         r.CorrectDataField = String.Empty
         r.DoRegression()
-
+        r.OutputRegressionResult()
     End Sub
 End Module

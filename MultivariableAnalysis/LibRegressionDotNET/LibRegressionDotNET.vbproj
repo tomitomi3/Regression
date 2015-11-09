@@ -114,7 +114,6 @@
   <ItemGroup>
     <Compile Include="Regression\clsLinearRegression.vb" />
     <Compile Include="Regression\clsDataMatrixCtrl.vb" />
-    <Compile Include="Regression\clsRegression.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
