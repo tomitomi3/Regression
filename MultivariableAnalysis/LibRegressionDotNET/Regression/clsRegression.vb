@@ -7,17 +7,23 @@ Namespace Regression
     ''' <remarks></remarks>
     Public Class clsRegression
 #Region "Member Dataset"
-        ''' <summary>org dataset</summary>
-        Private datas As New List(Of List(Of Double))
+        ''' <summary>dataset(org)</summary>
+        Private orgDataMatrix()() As Double
 
-        ''' <summary>dataset field name</summary>
-        Private fieldNames As New List(Of String)
+        ''' <summary>dataset field name(org)</summary>
+        Private orgFieldNames() As String
 
-        ''' <summary>Train dataset</summary>
-        Private trainDatas As New List(Of List(Of Double))
+        ''' <summary>train dataset</summary>
+        Private trainDataMatrix()() As Double
 
-        ''' <summary>Correct data</summary>
-        Private correctDatas As New List(Of Double)
+        ''' <summary>train dataset field name</summary>
+        Private trainFieldNames() As String
+
+        ''' <summary>correct Array</summary>
+        Private correctVector() As Double
+
+        ''' <summary>cprrect field name</summary>
+        Private correctFieldName As String
 
         Private datasetFileName As String = String.Empty
         Private datasetFilePath As String = String.Empty
@@ -61,26 +67,36 @@ Namespace Regression
         ''' <param name="ai_path"></param>
         ''' <remarks></remarks>
         Public Function ReadDatasetByCsv(ByVal ai_path As String) As Boolean
+            'Exist check
             If System.IO.File.Exists(ai_path) = False Then
                 Return False
             End If
 
+            'save file info
             Me.datasetFileName = System.IO.Path.GetFileName(ai_path)
             Me.datasetFilePath = ai_path
 
+            'read csv data
             Try
+                Dim tempMat = New List(Of Double())
                 Using r = New IO.StreamReader(ai_path, Text.Encoding.GetEncoding("SHIFT_JIS"))
                     Using csv = New CsvHelper.CsvReader(r)
                         csv.Configuration.HasHeaderRecord = True
-                        While csv.Read()
-                            Dim rowArray = csv.CurrentRecord.Select(Function(a As String)
-                                                                        Return CDbl(a)
-                                                                    End Function).ToList()
-                            Me.datas.Add(rowArray)
+                        While (csv.Read())
+                            Dim tempRowArray = csv.CurrentRecord.Select(Function(a As String)
+                                                                            Return CDbl(a)
+                                                                        End Function).ToArray
+                            tempMat.Add(tempRowArray)
                         End While
-                        Me.fieldNames = csv.FieldHeaders.ToList()
+                        Me.orgFieldNames = csv.FieldHeaders.ToArray()
                     End Using
                 End Using
+
+                'restructure org dataset
+                Me.orgDataMatrix = New Double(tempMat.Count - 1)() {}
+                For i As Integer = 0 To tempMat.Count - 1
+                    Me.orgDataMatrix(i) = tempMat(i)
+                Next
             Catch ex As Exception
                 Return False
             End Try
@@ -97,7 +113,7 @@ Namespace Regression
 
             'without Target
             Dim index As New List(Of Integer)
-            For i As Integer = 0 To Me.fieldNames.Count - 1
+            For i As Integer = 0 To Me.orgFieldNames.Count - 1
                 If i = Me.TargetVariableIndex Then
                     Continue For
                 End If
@@ -128,28 +144,99 @@ Namespace Regression
                 Return False
             End If
 
-            'restructure data matrix
-            Dim mat(datas.Count - 1)() As Double
-            For i As Integer = 0 To Me.datas.Count - 1
-                Dim array(Me.fieldNames.Count - 2) As Double
-                For j As Integer = 0 To Me.fieldNames.Count - 1
-                    If j = Me.TargetVariableIndex Then
-                        Continue For
-                    End If
-                    array(j) = Me.datas(i)(j)
+            'create train datamatrix
+            Me.CreateTrainDataMatrix(Me.orgDataMatrix, Me.orgFieldNames, Me.TargetVariableIndex, Me.trainDataMatrix, Me.trainFieldNames, Me.correctVector, Me.correctFieldName)
+
+            'using QR method Ref:http://numerics.mathdotnet.com/Regression.html
+            Dim weightVector = MathNet.Numerics.Fit.MultiDim(trainDataMatrix, correctVector, intercept:=True, method:=MathNet.Numerics.LinearRegression.DirectRegressionMethod.QR)
+            Console.WriteLine(MathNet.Numerics.LinearAlgebra.CreateMatrix.DenseOfColumnArrays(weightVector))
+
+            'calc residual sum of square
+            Dim residualArray(trainDataMatrix.Count - 1) As Double
+            Dim rssArray(trainDataMatrix.Count - 1) As Double
+            For i As Integer = 0 To residualArray.Count - 1
+                Dim tempSum As Double = weightVector(0)
+                For j As Integer = 1 To weightVector.Count - 1
+                    tempSum += weightVector(j) * trainDataMatrix(i)(j - 1)
                 Next
-                mat(i) = array
+                residualArray(i) = correctVector(i) - tempSum
+                rssArray(i) = residualArray(i) * residualArray(i)
             Next
 
-            'ライブラリ↓
-            'http://numerics.mathdotnet.com/Regression.html
+            Dim rss = rssArray.Sum
 
-            '分散共分散行列
-            'Dim datamat = MathNet.Numerics.LinearAlgebra.CreateMatrix.DenseOfRowArrays(mat)
-            'Dim datamatt = datamat.Transpose()
-            'Dim aa = datamatt * datamat
-            'Console.WriteLine(aa)
         End Function
+
+        '分散共分散行列
+        'With Nothing
+        '    Dim datamat = MathNet.Numerics.LinearAlgebra.CreateMatrix.DenseOfRowArrays(dataMatrix)
+        '    Dim datamatt = datamat.Transpose()
+        '    Dim avgArray = datamat.ColumnSums() / orgDataMatrix.Count
+        '    For i As Integer = 0 To datamat.RowCount - 1
+        '        For j As Integer = 0 To datamat.ColumnCount - 1
+        '            datamat(i, j) -= avgArray(j)
+        '        Next
+        '    Next
+        '    Dim crossMat = datamat * datamatt
+        'End With
+
+        '平均ベクトルを求める
+        'Dim avgArray(Me.fieldNames.Count - 2) As Double
+        'For i As Integer = 0 To dataMatrix.Length - 1
+        '    For j As Integer = 0 To Me.fieldNames.Count - 2
+        '        avgArray(j) += dataMatrix(i)(j)
+        '    Next
+        'Next
+        'For i As Integer = 0 To avgArray.Length - 1
+        '    avgArray(i) /= datas.Count
+        'Next
+
+        ''' <summary>
+        ''' AIC
+        ''' </summary>
+        ''' <returns></returns>
+        ''' <remarks></remarks>
+        Public Function CalcAIC() As Double
+
+        End Function
+
+        ''' <summary>
+        ''' Datamatrix
+        ''' </summary>
+        ''' <param name="ai_orgDataMatrix"></param>
+        ''' <param name="ai_FieldNames"></param>
+        ''' <param name="ai_colIndex"></param>
+        ''' <param name="ao_trainDataMatrix"></param>
+        ''' <param name="ao_trainFieldNames"></param>
+        ''' <param name="ao_correctArray"></param>
+        ''' <param name="ao_correctFieldName"></param>
+        ''' <remarks></remarks>
+        Private Sub CreateTrainDataMatrix(ByVal ai_orgDataMatrix As Double()(), ByVal ai_FieldNames As String(), ByVal ai_colIndex As Integer, _
+                                          ByRef ao_trainDataMatrix As Double()(), ByRef ao_trainFieldNames As String(), _
+                                          ByRef ao_correctArray As Double(), ByRef ao_correctFieldName As String)
+            'check
+            If ai_colIndex < 0 OrElse ai_orgDataMatrix Is Nothing OrElse ai_orgDataMatrix.Count = 0 Then
+                Return
+            End If
+
+            ao_trainDataMatrix = New Double(ai_orgDataMatrix.Count - 1)() {}
+            ao_trainFieldNames = New String(ai_FieldNames.Count - 2) {}
+            ao_correctArray = New Double(ai_orgDataMatrix.Count - 1) {}
+            ao_correctFieldName = String.Empty
+
+            'restructure data matrix
+            For i As Integer = 0 To ai_orgDataMatrix.Count - 1
+                Dim tempArray(ai_FieldNames.Count - 2) As Double
+                For j As Integer = 0 To ai_FieldNames.Count - 1
+                    If j = Me.TargetVariableIndex Then
+                        ao_correctArray(i) = ai_orgDataMatrix(i)(j)
+                    Else
+                        tempArray(j) = ai_orgDataMatrix(i)(j)
+                    End If
+                Next
+                ao_trainDataMatrix(i) = tempArray
+            Next
+        End Sub
 
         ''' <summary>
         ''' dataset property
@@ -158,11 +245,11 @@ Namespace Regression
         Public Sub ConsoleDatasetProperty()
             Console.WriteLine("Date            :{0}", System.DateTime.Now.ToString)
             Console.WriteLine("Dataset FileName:{0}", Me.datasetFileName)
-            Console.WriteLine("Dataset Records :{0}", Me.datas.Count)
-            Console.WriteLine("Number of Field :{0}", Me.fieldNames.Count)
+            Console.WriteLine("Dataset Records :{0}", Me.orgDataMatrix.Count)
+            Console.WriteLine("Number of Field :{0}", Me.orgFieldNames.Count)
             Console.WriteLine("Fields")
-            For i As Integer = 0 To Me.fieldNames.Count - 1
-                Console.WriteLine(" {0}:{1}", i, Me.fieldNames(i))
+            For i As Integer = 0 To Me.orgFieldNames.Count - 1
+                Console.WriteLine(" {0}:{1}", i, Me.orgFieldNames(i))
             Next
             Console.WriteLine("")
         End Sub

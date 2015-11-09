@@ -1,33 +1,21 @@
 ﻿Module Module1
     Sub Main()
-        Dim r = New LibRegressionDotNET.Regression.clsRegression()
-
-        'read dataset
-        If r.ReadDatasetByCsv("..\..\..\..\_dataset\housing_modify_org.csv") = False Then
-            Console.WriteLine("Error")
+        'Read data set and create data matrix
+        Dim mat = New LibRegressionDotNET.Regression.clsDataMatrixCtrl()
+        mat.FilePath = "..\..\..\..\_dataset\housing_modify_org.csv"
+        If mat.Read() = False Then
             Return
         End If
+        mat.OutputDatasetProperty()
+        mat.CreateDataMatrix(13)
 
-        'output dataset property
-        r.ConsoleDatasetProperty()
-
-        'Set target variable index 目的変数
-        r.TargetVariableIndex = 13
-
-        'data check
-        r.CheckData()
-
-        'DoRegression
-        r.IsCrossValidation = True
-        r.KFoldCrossValidation = 10
-        r.IsVariableSelection = False
-        If r.DoRegression() = False Then
-            Console.WriteLine("Error")
-            Return
-        End If
-
-        'output 
-        r.ConsoleRegressionResult()
+        'Do regression
+        Dim r = New LibRegressionDotNET.Regression.clsLinearRegression()
+        r.TrainDataMatrix = mat.GetTrainDataMatrix()
+        r.TrainDataFields = Nothing
+        r.CorrectDataVector = mat.GetCorrectDataVector()
+        r.CorrectDataField = String.Empty
+        r.DoRegression()
 
     End Sub
 End Module
