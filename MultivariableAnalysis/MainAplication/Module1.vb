@@ -1,4 +1,6 @@
-﻿Module Module1
+﻿Imports LibRegressionDotNET.Regression
+
+Module Module1
     Sub Main()
         'Read data set and create data matrix
         Dim mat = New LibRegressionDotNET.Regression.clsDataMatrixCtrl()
@@ -10,21 +12,26 @@
         mat.OutputDatasetProperty()
 
         'set target
-        mat.TargetIndex = 13 '13
+        mat.TargetIndex = 13
         mat.CreateDataMatrix()
-        mat.CheckCorrelation()
         'create data matrix without higher correlation variable
-        mat.WithoutCorreationCriteria = 0.75
-        mat.CheckRemoveIndex()
+        mat.CheckCorrelation(False)
+        mat.WithoutCorreationCriteria = 0.9
+        mat.CheckRemoveIndexByCorrelation(True)
         mat.CreateDataMatrix()
 
         'Do regression
         Dim r = New LibRegressionDotNET.Regression.clsLinearRegression()
         r.TrainDataMatrix = mat.GetTrainDataMatrix()
-        r.TrainDataFields = Nothing
+        r.TrainDataFields = mat.GetTrainFieldNames
         r.CorrectDataVector = mat.GetCorrectDataVector()
-        r.CorrectDataField = String.Empty
+        r.CorrectDataField = mat.GetCorrectFieldName
+        r.ValiableSelection = clsLinearRegression.EnumValiableSelection.ForwardSelection
         r.DoRegression()
         r.OutputRegressionResult()
+
+        'issue
+        'correlation
+        'hogehoge.AIC, hogehoge.BIC
     End Sub
 End Module

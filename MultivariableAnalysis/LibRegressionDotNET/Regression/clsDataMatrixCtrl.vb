@@ -32,11 +32,11 @@ Namespace Regression
         ''' <summary>目的変数ベクトル</summary>
         Private correctVector() As Double
 
-        ''' <summary>番号対フィールド名</summary>
-        Private dicTrainIndexVsFieldName As New Dictionary(Of Integer, String)
-
         ''' <summary>目的変数フィールド名</summary>
         Private correctFieldName = String.Empty
+
+        ''' <summary>番号対フィールド名</summary>
+        Private dicTrainIndexVsFieldName As New Dictionary(Of Integer, String)
 
         ''' <summary>分散共分散行列</summary>
         Private varCovarMatrix()() As Double
@@ -51,7 +51,7 @@ Namespace Regression
         Public Property WithoutCorreationCriteria As Double = 0.0
 
         ''' <summary>削除対象インデックス</summary>
-        Private removeIndex As List(Of Integer) = Nothing
+        Private removeIndex As New List(Of Integer)
 #End Region
 
 #Region "Public"
@@ -152,19 +152,27 @@ Namespace Regression
                 Return
             End If
 
-            Dim fieldCount As Integer = Me.orgFieldNames.Count
+            'clear
+            trainDataMatrix = Nothing
+            trainFieldNames = Nothing
+            correctVector = Nothing
+            correctFieldName = String.Empty
+
+            'restruct data matrix
+            Dim fldCount As Integer = Me.orgFieldNames.Count
             Dim recCount As Integer = Me.orgDataMatrix.Count
             Dim index As Integer = 0
 
-            'restruct data matrix
             trainDataMatrix = New Double(recCount - 1)() {}
             correctVector = New Double(recCount - 1) {}
             For i As Integer = 0 To orgDataMatrix.Count - 1
-                Dim tempArray(fieldCount - 2) As Double
+                Dim tempArray(fldCount - removeIndex.Count - 2) As Double
                 index = 0
-                For j As Integer = 0 To fieldCount - 1
+                For j As Integer = 0 To fldCount - 1
                     If j = TargetIndex Then
                         correctVector(i) = orgDataMatrix(i)(j)
+                    ElseIf removeIndex.IndexOf(j) >= 0 Then
+                        Continue For
                     Else
                         tempArray(index) = orgDataMatrix(i)(j)
                         index += 1
@@ -175,12 +183,14 @@ Namespace Regression
 
             'restruct field name
             dicTrainIndexVsFieldName.Clear()
-            trainFieldNames = New String(fieldCount - 2) {}
+            trainFieldNames = New String(fldCount - removeIndex.Count - 2) {}
             correctFieldName = Me.orgFieldNames(TargetIndex)
             index = 0
-            For i As Integer = 0 To fieldCount - 1
+            For i As Integer = 0 To fldCount - 1
                 If i = TargetIndex Then
                     Me.correctFieldName = Me.orgFieldNames(i)
+                ElseIf removeIndex.IndexOf(i) >= 0 Then
+                    Continue For
                 Else
                     Me.trainFieldNames(index) = Me.orgFieldNames(i)
                     dicTrainIndexVsFieldName.Add(index, Me.trainFieldNames(index)) 'resturct table
@@ -190,17 +200,17 @@ Namespace Regression
         End Sub
 
         ''' <summary>
-        ''' CheckRemoveIndex
+        ''' CheckRemoveIndex by correlation
         ''' </summary>
         ''' <remarks></remarks>
-        Public Sub CheckRemoveIndex()
+        Public Sub CheckRemoveIndexByCorrelation(Optional ByVal ai_isOutput As Boolean = False)
+            removeIndex = New List(Of Integer)
             If correlationArray Is Nothing Then
                 Return
             End If
 
-            Dim r = Me.WithoutCorreationCriteria
-
             'Filter using correlation
+            Dim r = Me.WithoutCorreationCriteria
             Dim target As New List(Of clsCorrelationSort)
             r = Math.Abs(r)
             For Each tempAr In Me.correlationArray
@@ -213,7 +223,6 @@ Namespace Regression
             End If
 
             'detect remove index
-            removeIndex = New List(Of Integer)
             For Each targetArray In target
                 Dim candidate1 As New List(Of Double)
                 Dim candidate2 As New List(Of Double)
@@ -250,6 +259,14 @@ Namespace Regression
 
             '重複の排除
             removeIndex = removeIndex.Distinct().ToList()
+            removeIndex.Sort()
+            If ai_isOutput = True Then
+                Console.WriteLine("Remove Index:")
+                For Each temp In removeIndex
+                    Console.WriteLine(" {0},{1}", temp, Me.dicTrainIndexVsFieldName(temp))
+                Next
+                Console.WriteLine("")
+            End If
         End Sub
 
         ''' <summary>
