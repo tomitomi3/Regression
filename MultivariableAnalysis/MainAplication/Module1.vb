@@ -13,8 +13,10 @@
         mat.TargetIndex = 13 '13
         mat.CreateDataMatrix()
         mat.CheckCorrelation()
-
         'create data matrix without higher correlation variable
+        mat.WithoutCorreationCriteria = 0.75
+        mat.CheckRemoveIndex()
+        mat.CreateDataMatrix()
 
         'Do regression
         Dim r = New LibRegressionDotNET.Regression.clsLinearRegression()

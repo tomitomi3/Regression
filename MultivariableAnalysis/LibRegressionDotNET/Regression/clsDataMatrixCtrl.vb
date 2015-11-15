@@ -42,7 +42,16 @@ Namespace Regression
         Private varCovarMatrix()() As Double
 
         ''' <summary>相関行列</summary>
-        Private correMatrix()() As Double
+        Private correlationMatrix()() As Double
+
+        ''' <summary>相関ベクトル（相関行列から計算）</summary>
+        Private correlationArray As List(Of clsCorrelationSort) = Nothing
+
+        ''' <summary>相関係数による変数削除基準</summary>
+        Public Property WithoutCorreationCriteria As Double = 0.0
+
+        ''' <summary>削除対象インデックス</summary>
+        Private removeIndex As List(Of Integer) = Nothing
 #End Region
 
 #Region "Public"
@@ -80,7 +89,6 @@ Namespace Regression
                         End If
                     End Using
                 End Using
-
             Catch ex As Exception
                 Return False
             End Try
@@ -148,7 +156,7 @@ Namespace Regression
             Dim recCount As Integer = Me.orgDataMatrix.Count
             Dim index As Integer = 0
 
-            'restruc data matrix
+            'restruct data matrix
             trainDataMatrix = New Double(recCount - 1)() {}
             correctVector = New Double(recCount - 1) {}
             For i As Integer = 0 To orgDataMatrix.Count - 1
@@ -179,6 +187,69 @@ Namespace Regression
                     index += 1
                 End If
             Next
+        End Sub
+
+        ''' <summary>
+        ''' CheckRemoveIndex
+        ''' </summary>
+        ''' <remarks></remarks>
+        Public Sub CheckRemoveIndex()
+            If correlationArray Is Nothing Then
+                Return
+            End If
+
+            Dim r = Me.WithoutCorreationCriteria
+
+            'Filter using correlation
+            Dim target As New List(Of clsCorrelationSort)
+            r = Math.Abs(r)
+            For Each tempAr In Me.correlationArray
+                If tempAr.AbsCorrelation > r Then
+                    target.Add(tempAr)
+                End If
+            Next
+            If target.Count = 0 OrElse target.Count = Me.correlationArray.Count Then
+                Return
+            End If
+
+            'detect remove index
+            removeIndex = New List(Of Integer)
+            For Each targetArray In target
+                Dim candidate1 As New List(Of Double)
+                Dim candidate2 As New List(Of Double)
+                For col As Integer = 0 To correlationMatrix.Count - 1
+                    If targetArray.RowIndex = col Then
+                        Continue For
+                    End If
+                    If targetArray.RowIndex = targetArray.RowIndex AndAlso targetArray.ColIndex = col Then
+                        Continue For
+                    End If
+                    Dim temp = Math.Abs(correlationMatrix(targetArray.RowIndex)(col))
+                    candidate1.Add(temp)
+                Next
+                For col As Integer = 0 To correlationMatrix.Count - 1
+                    If targetArray.ColIndex = col Then
+                        Continue For
+                    End If
+                    If targetArray.ColIndex = targetArray.ColIndex AndAlso targetArray.RowIndex = col Then
+                        Continue For
+                    End If
+                    Dim temp = Math.Abs(correlationMatrix(targetArray.ColIndex)(col))
+                    candidate2.Add(temp)
+                Next
+
+                '回帰分析の変数間は独立を仮定＝他と相関が高い変数を削除対象
+                Dim c1avg = candidate1.Sum() / candidate1.Count
+                Dim c2avg = candidate2.Sum() / candidate2.Count
+                If c1avg > c2avg Then
+                    removeIndex.Add(targetArray.RowIndex)
+                Else
+                    removeIndex.Add(targetArray.ColIndex)
+                End If
+            Next
+
+            '重複の排除
+            removeIndex = removeIndex.Distinct().ToList()
         End Sub
 
         ''' <summary>
@@ -270,7 +341,7 @@ Namespace Regression
         ''' Check Correlation
         ''' </summary>
         ''' <remarks></remarks>
-        Public Sub CheckCorrelation()
+        Public Sub CheckCorrelation(Optional ByVal ai_output As Boolean = True)
             'check
             If Me.orgDataMatrix Is Nothing Then
                 Me.CreateDataMatrix()
@@ -281,30 +352,32 @@ Namespace Regression
 
             'cal Var-CoVarMatrix and CorrelationMatrix
             Me.varCovarMatrix = Me.CalcVarianceCovarianceMatrix()
-            Me.correMatrix = Me.CalcCorrelationMatrix()
+            Me.correlationMatrix = Me.CalcCorrelationMatrix()
 
             'access lower triangle
-            Dim cor = New List(Of clsCorrelationSort)
-            For i = 0 To correMatrix.Count - 1
-                For j = 0 To correMatrix.Count - 1
+            Me.correlationArray = New List(Of clsCorrelationSort)
+            For i = 0 To correlationMatrix.Count - 1
+                For j = 0 To correlationMatrix.Count - 1
                     If i = j Then
                         Exit For
                     End If
-                    cor.Add(New clsCorrelationSort(i, j, Me.correMatrix(i)(j)))
+                    correlationArray.Add(New clsCorrelationSort(i, j, Me.correlationMatrix(i)(j)))
                 Next
             Next
-            cor.Sort()
+            correlationArray.Sort()
 
             'High correlation Top10
-            Dim topNCount As Integer = 10
-            If cor.Count < 10 Then
-                topNCount = cor.Count
+            If ai_output = True Then
+                Dim topNCount As Integer = 10
+                If correlationArray.Count < 10 Then
+                    topNCount = correlationArray.Count
+                End If
+                Console.WriteLine("High Correlation Top{0}", topNCount)
+                For i As Integer = 0 To topNCount - 1
+                    Dim temp = correlationArray(i)
+                    Console.WriteLine(" {0} {1} {2}", Me.dicTrainIndexVsFieldName(temp.RowIndex), Me.dicTrainIndexVsFieldName(temp.ColIndex), temp.Correlation)
+                Next
             End If
-            Console.WriteLine("High Correlation Top{0}", topNCount)
-            For i As Integer = 0 To topNCount - 1
-                Dim temp = cor(i)
-                Console.WriteLine(" {0} {1} {2}", Me.dicTrainIndexVsFieldName(temp.RowIndex), Me.dicTrainIndexVsFieldName(temp.ColIndex), temp.Correlation)
-            Next
         End Sub
 #End Region
 #Region "Private"
@@ -324,7 +397,7 @@ Namespace Regression
             Public Property Correlation As Double = 0.0
 
             ''' <summary>相関の絶対値</summary>
-            Private AbsCorrelation As Double = 0.0
+            Public Property AbsCorrelation As Double = 0.0
 
             ''' <summary>相関のソート条件（True:相関の絶対値を用いてソート）</summary>
             Public Property IsUseAbsoluteSort As Boolean = True
@@ -413,11 +486,6 @@ Namespace Regression
 
             Return corMat.ToRowArrays()
         End Function
-
-        Private Sub DebugView(ByVal ai_mat()() As Double)
-            'ControlChars.Tab
-
-        End Sub
 #End Region
     End Class
 End Namespace
