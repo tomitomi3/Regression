@@ -44,7 +44,7 @@ Namespace Regression
             ''' <summary>変数減少法</summary>
             BackwardElimination
             ''' <summary>変数減少法（変数0からスタート）</summary>
-            Stepwise
+            StepwiseSelection
         End Enum
 #End Region
 
@@ -67,6 +67,10 @@ Namespace Regression
                 Return
             End If
 
+            Dim fldCount As Integer = Me.TrainDataMatrix(0).Count
+            Dim recCount As Integer = Me.TrainDataMatrix.Count
+            Dim useIndexArray As New List(Of Integer)
+
             If Me.ValiableSelection = EnumValiableSelection.NotUseVariableSelection Then
                 'not use variable selection
                 Try
@@ -78,10 +82,7 @@ Namespace Regression
                 End Try
                 Return
             ElseIf Me.ValiableSelection = EnumValiableSelection.ForwardSelection Then
-                'use variable selection(experiment)
-                Dim fldCount As Integer = Me.TrainDataMatrix(0).Count
-                Dim recCount As Integer = Me.TrainDataMatrix.Count
-                Dim useIndexArray As New List(Of Integer)
+                'use variable selection ForwardSelection
                 Dim indexArray As New List(Of Integer)
                 For index As Integer = 0 To fldCount - 1
                     indexArray.Add(index)
@@ -122,16 +123,21 @@ Namespace Regression
                         useIndexArray.Add(smallAICIndex)
                     End If
                 End While
-                With Nothing
-                    Dim tempDataMat()() As Double = RestructDataMatrix(useIndexArray.ToArray())
-                    Dim tempWeight() As Double = Fit.MultiDim(RestructDataMatrix(useIndexArray.ToArray()), CorrectDataVector, intercept:=True, method:=LinearRegression.DirectRegressionMethod.QR)
-                    Dim squareR As Double
-                    Dim aic As Double
-                    Dim bic As Double
-                    Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat, squareR, aic, bic)
-                End With
-            Else
-                'use variable selection
+
+                'update
+                Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
+                Me.TrainDataFields = Nothing
+                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, intercept:=True, method:=LinearRegression.DirectRegressionMethod.QR)
+            ElseIf Me.ValiableSelection = EnumValiableSelection.BackwardElimination Then
+                'use variable selection BackwardElimination
+                Throw New NotImplementedException()
+
+            ElseIf Me.ValiableSelection = EnumValiableSelection.StepwiseSelection Then
+                'use variable selection StepwiseSelection
+                Throw New NotImplementedException()
+            ElseIf Me.ValiableSelection = EnumValiableSelection.AllCombination Then
+                'use variable selection AllCombination
+                Throw New NotImplementedException()
             End If
 
             ''最小二乗法 (X^T*X)-1*X^T*Y
@@ -158,11 +164,21 @@ Namespace Regression
                 Return
             End If
 
+            Dim dataField() As String = Me.TrainDataFields
+            If Me.TrainDataFields Is Nothing Then
+                Dim fldCount As Integer = Me.TrainDataMatrix(0).Count
+                Dim tempFieldNames As New List(Of String)
+                For i As Integer = 0 To fldCount - 1
+                    tempFieldNames.Add(String.Format("{0}", i))
+                Next
+                dataField = tempFieldNames.ToArray()
+            End If
+
             'Result
             Console.WriteLine("Result:")
-            Console.WriteLine(" w0:{0}", weightVector(0))
+            Console.WriteLine(" w0, ,{0}", weightVector(0))
             For i As Integer = 1 To weightVector.Count - 1
-                Console.WriteLine(" w{0}:{1}", i, weightVector(i))
+                Console.WriteLine(" w{0},{1},{2}", i, dataField(i - 1), weightVector(i))
             Next
             Console.WriteLine("")
 
@@ -254,6 +270,7 @@ Namespace Regression
             Dim fldCount As Integer = Me.TrainDataMatrix(0).Count
             Dim recCount As Integer = Me.TrainDataMatrix.Count
             Dim retDataMat = New Double(recCount - 1)() {}
+            Array.Sort(ai_useIndex)
 
             With Nothing
                 Dim useIndexArray As New List(Of Integer)
