@@ -20,14 +20,17 @@ Module Module1
         mat.CheckRemoveIndexByCorrelation(True)
         mat.CreateDataMatrix()
 
+        'for CV
+        mat.CreateSplitDataMatrix(10)
+
         'Do regression
         Dim r = New LibRegressionDotNET.Regression.clsLinearRegression()
-        For Each vSelection In [Enum].GetValues(GetType(clsLinearRegression.EnumValiableSelection))
+        For Each vSelection In [Enum].GetValues(GetType(clsLinearRegression.EnumVariableSelection))
             r.TrainDataMatrix = mat.GetTrainDataMatrix()
             r.TrainDataFields = mat.GetTrainFieldNames
             r.CorrectDataVector = mat.GetCorrectDataVector()
             r.CorrectDataField = mat.GetCorrectFieldName
-            r.ValiableSelection = vSelection
+            r.VariableSelection = vSelection
             r.DoRegression(True)
             r.OutputRegressionResult()
         Next

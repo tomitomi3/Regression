@@ -112,6 +112,9 @@
     <Import Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Math\clsUtil.vb" />
+    <Compile Include="Regression\clsLassoRegression.vb" />
+    <Compile Include="Regression\clsRidgeRegression.vb" />
     <Compile Include="Regression\clsLinearRegression.vb" />
     <Compile Include="Regression\clsDataMatrixCtrl.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
@@ -150,9 +153,7 @@
     </None>
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Math\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

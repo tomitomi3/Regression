@@ -31,10 +31,10 @@ Namespace Regression
         End Property
 
         ''' <summary>変数選択の手法</summary>
-        Public Property ValiableSelection As EnumValiableSelection = EnumValiableSelection.NotUseVariableSelection
+        Public Property VariableSelection As EnumVariableSelection = EnumVariableSelection.NotUseVariableSelection
 
         ''' <summary>変数選択の手法</summary>
-        Public Enum EnumValiableSelection
+        Public Enum EnumVariableSelection
             ''' <summary>変数選択を行わない</summary>
             NotUseVariableSelection
             ''' <summary>全組み合わせ</summary>
@@ -78,9 +78,9 @@ Namespace Regression
 
             If ai_isPrint = True Then
                 Console.WriteLine("Regression:")
-                Console.WriteLine(" VariableSelection:{0}", Me.ValiableSelection.ToString)
+                Console.WriteLine(" VariableSelection:{0}", Me.VariableSelection.ToString)
                 Console.WriteLine("")
-                If Me.ValiableSelection <> EnumValiableSelection.NotUseVariableSelection Then
+                If Me.VariableSelection <> EnumVariableSelection.NotUseVariableSelection Then
                     Console.WriteLine("==Start Variable Selection==")
                 End If
             End If
@@ -88,11 +88,11 @@ Namespace Regression
             '------------------------------------------------------------
             'variable selection
             '------------------------------------------------------------
-            If Me.ValiableSelection = EnumValiableSelection.NotUseVariableSelection Then
+            If Me.VariableSelection = EnumVariableSelection.NotUseVariableSelection Then
                 'not use variable selection
                 'using QR method Ref:http://numerics.mathdotnet.com/Regression.html
                 Me.weightVector = Fit.MultiDim(TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
-            ElseIf Me.ValiableSelection = EnumValiableSelection.ForwardSelection Then
+            ElseIf Me.VariableSelection = EnumVariableSelection.ForwardSelection Then
                 'use variable selection ForwardSelection
                 'non variable
                 Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}, Me.CorrectDataVector, Nothing)
@@ -139,7 +139,7 @@ Namespace Regression
                 Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
                 Me.TrainDataFields = RestructFieldNames(useIndexArray.ToArray())
                 Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
-            ElseIf Me.ValiableSelection = EnumValiableSelection.BackwardElimination Then
+            ElseIf Me.VariableSelection = EnumVariableSelection.BackwardElimination Then
                 'use variable selection BackwardElimination
                 'first all use variable
                 Dim tempWeight() As Double = Fit.MultiDim(TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
@@ -188,7 +188,7 @@ Namespace Regression
                 Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
                 Me.TrainDataFields = RestructFieldNames(useIndexArray.ToArray())
                 Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
-            ElseIf Me.ValiableSelection = EnumValiableSelection.StepwiseSelection Then
+            ElseIf Me.VariableSelection = EnumVariableSelection.StepwiseSelection Then
                 'use variable selection StepwiseSelection
                 'non variable
                 Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}, Me.CorrectDataVector, Nothing)

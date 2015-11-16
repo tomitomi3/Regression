@@ -401,6 +401,29 @@ Namespace Regression
                 Next
             End If
         End Sub
+
+        ''' <summary>
+        ''' split data matrix
+        ''' </summary>
+        ''' <param name="ai_kfold"></param>
+        ''' <remarks></remarks>
+        Public Sub CreateSplitDataMatrix(ByVal ai_kfold As Integer)
+            If Me.orgDataMatrix Is Nothing Then
+                Return
+            End If
+
+            Dim fldCount As Integer = Me.orgFieldNames.Count
+            Dim recCount As Integer = Me.orgDataMatrix.Count
+
+            '1分割あたりのデータ数　説明変数の1倍1以上あるか
+            Dim numUnit = CType(recCount / ai_kfold, Integer)
+            If numUnit < fldCount * 1.3 Then
+                Return
+            End If
+
+            'データ行列 行をランダム化
+            Dim randIndex = Util.clsUtil.RandomPermutaion(Me.orgDataMatrix.Count())
+        End Sub
 #End Region
 
 #Region "Private"
