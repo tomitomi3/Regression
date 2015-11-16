@@ -22,14 +22,16 @@ Module Module1
 
         'Do regression
         Dim r = New LibRegressionDotNET.Regression.clsLinearRegression()
-        r.TrainDataMatrix = mat.GetTrainDataMatrix()
-        r.TrainDataFields = mat.GetTrainFieldNames
-        r.CorrectDataVector = mat.GetCorrectDataVector()
-        r.CorrectDataField = mat.GetCorrectFieldName
-        r.ValiableSelection = clsLinearRegression.EnumValiableSelection.ForwardSelection
-        r.DoRegression()
-        r.OutputRegressionResult()
-
+        For Each vSelection In [Enum].GetValues(GetType(clsLinearRegression.EnumValiableSelection))
+            r.TrainDataMatrix = mat.GetTrainDataMatrix()
+            r.TrainDataFields = mat.GetTrainFieldNames
+            r.CorrectDataVector = mat.GetCorrectDataVector()
+            r.CorrectDataField = mat.GetCorrectFieldName
+            r.ValiableSelection = vSelection
+            r.DoRegression(True)
+            r.OutputRegressionResult()
+        Next
+        Console.ReadLine()
         'issue
         'correlation
         'hogehoge.AIC, hogehoge.BIC

@@ -203,8 +203,9 @@ Namespace Regression
         ''' CheckRemoveIndex by correlation
         ''' </summary>
         ''' <remarks></remarks>
-        Public Sub CheckRemoveIndexByCorrelation(Optional ByVal ai_isOutput As Boolean = False)
-            removeIndex = New List(Of Integer)
+        Public Sub CheckRemoveIndexByCorrelation(Optional ByVal ai_isPrint As Boolean = False)
+            Me.removeIndex = New List(Of Integer)
+            Dim removeCorrelation = New List(Of Double)
             If correlationArray Is Nothing Then
                 Return
             End If
@@ -260,8 +261,12 @@ Namespace Regression
             '重複の排除
             removeIndex = removeIndex.Distinct().ToList()
             removeIndex.Sort()
-            If ai_isOutput = True Then
-                Console.WriteLine("Remove Index:")
+            If ai_isPrint = True Then
+                Console.WriteLine("High correlation variable:")
+                For Each c In target
+                    Console.WriteLine(" {0},{1},{2}", c.RowIndex, c.ColIndex, c.Correlation)
+                Next
+                Console.WriteLine("Remove Index by Correlation:")
                 For Each temp In removeIndex
                     Console.WriteLine(" {0},{1}", temp, Me.dicTrainIndexVsFieldName(temp))
                 Next
@@ -358,7 +363,7 @@ Namespace Regression
         ''' Check Correlation
         ''' </summary>
         ''' <remarks></remarks>
-        Public Sub CheckCorrelation(Optional ByVal ai_output As Boolean = True)
+        Public Sub CheckCorrelation(Optional ByVal ai_isPrint As Boolean = True)
             'check
             If Me.orgDataMatrix Is Nothing Then
                 Me.CreateDataMatrix()
@@ -384,7 +389,7 @@ Namespace Regression
             correlationArray.Sort()
 
             'High correlation Top10
-            If ai_output = True Then
+            If ai_isPrint = True Then
                 Dim topNCount As Integer = 10
                 If correlationArray.Count < 10 Then
                     topNCount = correlationArray.Count
@@ -397,6 +402,7 @@ Namespace Regression
             End If
         End Sub
 #End Region
+
 #Region "Private"
         ''' <summary>
         ''' 相関行列のソートクラス

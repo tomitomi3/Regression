@@ -38,7 +38,7 @@ Namespace Regression
             ''' <summary>変数選択を行わない</summary>
             NotUseVariableSelection
             ''' <summary>全組み合わせ</summary>
-            AllCombination
+            'AllCombination
             ''' <summary>変数増加法</summary>
             ForwardSelection
             ''' <summary>変数減少法</summary>
@@ -61,7 +61,7 @@ Namespace Regression
         ''' do regression analysis
         ''' </summary>
         ''' <remarks></remarks>
-        Public Sub DoRegression()
+        Public Sub DoRegression(Optional ByVal ai_isPrint As Boolean = False)
             'check
             If TrainDataMatrix Is Nothing OrElse CorrectDataVector Is Nothing Then
                 Return
@@ -69,90 +69,233 @@ Namespace Regression
 
             Dim fldCount As Integer = Me.TrainDataMatrix(0).Count
             Dim recCount As Integer = Me.TrainDataMatrix.Count
-            Dim useIndexArray As New List(Of Integer)
 
+            Dim useIndexArray As New List(Of Integer)
+            Dim iterateIndex As New List(Of Integer)
+            For index As Integer = 0 To fldCount - 1
+                iterateIndex.Add(index)
+            Next
+
+            If ai_isPrint = True Then
+                Console.WriteLine("Regression:")
+                Console.WriteLine(" VariableSelection:{0}", Me.ValiableSelection.ToString)
+                Console.WriteLine("")
+                If Me.ValiableSelection <> EnumValiableSelection.NotUseVariableSelection Then
+                    Console.WriteLine("==Start Variable Selection==")
+                End If
+            End If
+
+            '------------------------------------------------------------
+            'variable selection
+            '------------------------------------------------------------
             If Me.ValiableSelection = EnumValiableSelection.NotUseVariableSelection Then
                 'not use variable selection
-                Try
-                    'using QR method Ref:http://numerics.mathdotnet.com/Regression.html
-                    Me.weightVector = Fit.MultiDim(TrainDataMatrix, CorrectDataVector, intercept:=True, method:=MathNet.Numerics.LinearRegression.DirectRegressionMethod.QR)
-                Catch ex As Exception
-                    Me.weightVector = Nothing
-                    Console.WriteLine(MathNet.Numerics.LinearAlgebra.CreateMatrix.DenseOfColumnArrays(weightVector))
-                End Try
-                Return
+                'using QR method Ref:http://numerics.mathdotnet.com/Regression.html
+                Me.weightVector = Fit.MultiDim(TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
             ElseIf Me.ValiableSelection = EnumValiableSelection.ForwardSelection Then
                 'use variable selection ForwardSelection
-                Dim indexArray As New List(Of Integer)
-                For index As Integer = 0 To fldCount - 1
-                    indexArray.Add(index)
-                Next
+                'non variable
+                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}, Me.CorrectDataVector, Nothing)
+
+                'add variable
                 While (True)
-                    Dim smallAIC As Double = 0
-                    Dim smallAICIndex As Integer = 0
-                    Dim isDetectSmallAic As Boolean = False
-                    For Each index In indexArray
+                    Dim bestIndex As Integer = 0
+                    Dim isUpdateBest As Boolean = False
+                    For Each i In iterateIndex
                         Dim tempUseIndexArray = useIndexArray.ToList()
-                        tempUseIndexArray.Add(index)
+                        tempUseIndexArray.Add(i) 'add
                         Dim tempDataMat()() As Double = RestructDataMatrix(tempUseIndexArray.ToArray())
-                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, intercept:=True, method:=LinearRegression.DirectRegressionMethod.QR)
+                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
 
                         'Validate
-                        Dim squareR As Double
-                        Dim aic As Double
-                        Dim bic As Double
-                        Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat, squareR, aic, bic)
+                        Dim temp = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat)
 
-                        'AICが低いものを採用する
-                        If index = 0 Then
-                            smallAIC = aic
-                            smallAICIndex = index
-                        ElseIf smallAIC > aic Then
-                            smallAIC = aic
-                            smallAICIndex = index
-                            isDetectSmallAic = True
+                        'update best
+                        If bestEval.AIC > temp.AIC Then
+                            bestEval = temp
+                            bestIndex = i
+                            isUpdateBest = True
                         End If
                     Next
 
                     '終了条件
-                    If isDetectSmallAic = False OrElse useIndexArray.Count = fldCount Then
+                    If isUpdateBest = False OrElse useIndexArray.Count = fldCount Then
                         Exit While
                     Else
-                        Dim remove As Integer = indexArray.IndexOf(smallAICIndex)
-                        indexArray.Remove(remove)
-                        useIndexArray.Add(smallAICIndex)
+                        iterateIndex.RemoveAt(iterateIndex.IndexOf(bestIndex))
+                        useIndexArray.Add(bestIndex)
+                        If ai_isPrint = True Then
+                            Console.WriteLine("Select Variable:")
+                            For Each v In useIndexArray
+                                Console.Write(" {0}", v)
+                            Next
+                            Console.WriteLine("")
+                            Console.WriteLine(bestEval)
+                        End If
                     End If
                 End While
 
                 'update
                 Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
-                Me.TrainDataFields = Nothing
-                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, intercept:=True, method:=LinearRegression.DirectRegressionMethod.QR)
+                Me.TrainDataFields = RestructFieldNames(useIndexArray.ToArray())
+                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
             ElseIf Me.ValiableSelection = EnumValiableSelection.BackwardElimination Then
                 'use variable selection BackwardElimination
-                Throw New NotImplementedException()
+                'first all use variable
+                Dim tempWeight() As Double = Fit.MultiDim(TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                Dim bestEval = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, Nothing)
 
+                'delete variable
+                useIndexArray = iterateIndex.ToList()
+                While (True)
+                    Dim bestIndex As Integer = 0
+                    Dim isUpdateBest As Boolean = False
+                    For Each i In iterateIndex
+                        Dim tempUseIndexArray = useIndexArray.ToList()
+                        tempUseIndexArray.RemoveAt(tempUseIndexArray.IndexOf(i)) 'delete
+                        Dim tempDataMat()() As Double = RestructDataMatrix(tempUseIndexArray.ToArray())
+                        tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+
+                        'Validate
+                        Dim temp = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat)
+
+                        'update best
+                        If bestEval.AIC > temp.AIC Then
+                            bestEval = temp
+                            bestIndex = i
+                            isUpdateBest = True
+                        End If
+                    Next
+
+                    '終了条件
+                    If isUpdateBest = False OrElse useIndexArray.Count = 0 Then
+                        Exit While
+                    Else
+                        iterateIndex.RemoveAt(iterateIndex.IndexOf(bestIndex))
+                        useIndexArray = iterateIndex.ToList()
+                        If ai_isPrint = True Then
+                            Console.WriteLine("Select Variable:")
+                            For Each v In useIndexArray
+                                Console.Write(" {0}", v)
+                            Next
+                            Console.WriteLine("")
+                            Console.WriteLine(bestEval)
+                        End If
+                    End If
+                End While
+
+                'update
+                Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
+                Me.TrainDataFields = RestructFieldNames(useIndexArray.ToArray())
+                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
             ElseIf Me.ValiableSelection = EnumValiableSelection.StepwiseSelection Then
                 'use variable selection StepwiseSelection
-                Throw New NotImplementedException()
-            ElseIf Me.ValiableSelection = EnumValiableSelection.AllCombination Then
-                'use variable selection AllCombination
-                Throw New NotImplementedException()
+                'non variable
+                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}, Me.CorrectDataVector, Nothing)
+
+                'stepwise
+                While (True)
+                    Dim bestIndex As Integer = 0
+                    Dim isUpdateBest As Boolean = False
+
+                    '変数を追加
+                    For Each i In iterateIndex
+                        Dim tempUseIndexArray = useIndexArray.ToList()
+                        tempUseIndexArray.Add(i) 'add
+                        Dim tempDataMat()() As Double = RestructDataMatrix(tempUseIndexArray.ToArray())
+                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+
+                        'Validate
+                        Dim temp = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat)
+
+                        'update best
+                        If bestEval.AIC > temp.AIC Then
+                            bestEval = temp
+                            bestIndex = i
+                            isUpdateBest = True
+                        End If
+                    Next
+                    If isUpdateBest = True Then
+                        iterateIndex.RemoveAt(iterateIndex.IndexOf(bestIndex))
+                        useIndexArray.Add(bestIndex)
+                        If ai_isPrint = True Then
+                            Console.WriteLine("Select Variable(add):")
+                            For Each v In useIndexArray
+                                Console.Write(" {0}", v)
+                            Next
+                            Console.WriteLine("")
+                            Console.WriteLine(bestEval)
+                        End If
+                    End If
+
+                    'これまで追加した変数を削除
+                    Dim isDeleteBest As Boolean = False
+                    For Each i In useIndexArray
+                        Dim tempUseIndexArray = useIndexArray.ToList()
+                        tempUseIndexArray.RemoveAt(tempUseIndexArray.IndexOf(i)) 'delete
+                        Dim tempDataMat()() As Double = Nothing
+                        Dim tempWeight() As Double = Nothing
+                        If useIndexArray.Count = 1 Then
+                            tempWeight = {Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}
+                        Else
+                            tempDataMat = RestructDataMatrix(tempUseIndexArray.ToArray())
+                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                        End If
+
+                        'Validate
+                        Dim temp = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat)
+
+                        'update best
+                        If bestEval.AIC > temp.AIC Then
+                            bestEval = temp
+                            bestIndex = i
+                            isDeleteBest = True
+                        End If
+                    Next
+                    If isDeleteBest = True Then
+                        iterateIndex.Add(bestIndex)
+                        useIndexArray.RemoveAt(useIndexArray.IndexOf(bestIndex))
+                        If ai_isPrint = True Then
+                            Console.WriteLine("Select Variable(delete):")
+                            For Each v In useIndexArray
+                                Console.Write(" {0}", v)
+                            Next
+                            Console.WriteLine("")
+                            Console.WriteLine(bestEval)
+                        End If
+                    End If
+
+                    '終了条件
+                    If useIndexArray.Count = fldCount Then
+                        Exit While
+                    ElseIf isUpdateBest = False AndAlso isDeleteBest = False Then
+                        Exit While
+                    End If
+                End While
+
+                'update
+                Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
+                Me.TrainDataFields = RestructFieldNames(useIndexArray.ToArray())
+                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
             End If
 
             ''最小二乗法 (X^T*X)-1*X^T*Y
-            'Dim y = CreateMatrix.DenseOfColumnArrays(Me.correctVector)
-            'Dim x = CreateMatrix.Dense(Of Double)(TrainDataMatrix.Count, Me.trainFieldNames.Count + 1)
-            'For i = 0 To Me.TrainDataMatrix.Count - 1
-            '    Dim tempRow(Me.trainFieldNames.Count) As Double
-            '    tempRow(0) = 1.0
-            '    For j As Integer = 0 To Me.trainFieldNames.Count - 1
-            '        tempRow(j + 1) = Me.TrainDataMatrix(i)(j)
+            'With Nothing
+            '    Dim y = CreateMatrix.DenseOfColumnArrays(CorrectDataVector)
+            '    Dim x = CreateMatrix.Dense(Of Double)(TrainDataMatrix.Count, fldCount + 1)
+            '    For i = 0 To Me.TrainDataMatrix.Count - 1
+            '        Dim tempRow(fldCount) As Double
+            '        tempRow(0) = 1.0
+            '        For j As Integer = 0 To fldCount - 1
+            '            tempRow(j + 1) = Me.TrainDataMatrix(i)(j)
+            '        Next
+            '        x.SetRow(i, tempRow)
             '    Next
-            '    x.SetRow(i, tempRow)
-            'Next
-            'Dim xx = (x.Transpose() * x).Inverse() * x.Transpose() * y
-            'Console.WriteLine(xx)
+            '    Dim xx = (x.Transpose() * x).Inverse() * x.Transpose() * y
+            '    Console.WriteLine(xx)
+            '    '※w0だけの場合 = 目的変数の平均値になる
+            '    Dim temp = CorrectDataVector.Sum / CorrectDataVector.Count
+            'End With
         End Sub
 
         ''' <summary>
@@ -176,21 +319,14 @@ Namespace Regression
 
             'Result
             Console.WriteLine("Result:")
-            Console.WriteLine(" w0, ,{0}", weightVector(0))
+            Console.WriteLine(" w0,{0}", weightVector(0))
             For i As Integer = 1 To weightVector.Count - 1
                 Console.WriteLine(" w{0},{1},{2}", i, dataField(i - 1), weightVector(i))
             Next
             Console.WriteLine("")
 
             'Validate
-            Dim squareR As Double
-            Dim aic As Double
-            Dim bic As Double
-            Me.EvaluateRegression(Me.weightVector, Me.CorrectDataVector, Me.TrainDataMatrix, squareR, aic, bic)
-            Console.WriteLine("Validate:")
-            Console.WriteLine(" R^2 = {0}", squareR)
-            Console.WriteLine(" AIC = {0}", aic)
-            Console.WriteLine(" BIC = {0}", bic)
+            Console.WriteLine(Me.EvaluateRegression(Me.weightVector, Me.CorrectDataVector, Me.TrainDataMatrix))
         End Sub
 #End Region
 
@@ -215,42 +351,104 @@ Namespace Regression
 
 #Region "Private"
         ''' <summary>
+        ''' 評価値格納クラス
+        ''' </summary>
+        ''' <remarks></remarks>
+        Private Class clsEvaluate
+            Implements IComparable
+            Public Property AIC As Double = 0
+            Public Property BIC As Double = 0
+            Public Property SquareR As Double = 0
+            Public Property RSS As Double = 0
+            Public UseIndexArray() As Integer = Nothing
+
+            Public Sub New()
+
+            End Sub
+
+            Public Sub New(ByVal ai_aic As Double, ByVal ai_bic As Double, ByVal ai_r As Double, ByVal ai_ar() As Integer)
+                Me.AIC = ai_aic
+                Me.BIC = ai_bic
+                Me.SquareR = ai_r
+                Me.UseIndexArray = ai_ar
+            End Sub
+
+            Public Function CompareTo(ai_obj As Object) As Integer Implements IComparable.CompareTo
+                'Nothing check
+                If ai_obj Is Nothing Then
+                    Return 1
+                End If
+
+                'Type check
+                If Not Me.GetType() Is ai_obj.GetType() Then
+                    Throw New ArgumentException("Different type", "obj")
+                End If
+
+                'Compare
+                Dim mineValue As Double = Me.AIC
+                Dim compareValue As Double = DirectCast(ai_obj, clsEvaluate).AIC
+                If mineValue = compareValue Then
+                    Return 0
+                ElseIf mineValue < compareValue Then
+                    Return 1
+                Else
+                    Return -1
+                End If
+            End Function
+
+            Public Overrides Function ToString() As String
+                Dim tempStr As String = String.Empty
+                tempStr = tempStr & String.Format("Evaluate:") & ControlChars.NewLine
+                tempStr = tempStr & String.Format(" RSS = {0}", RSS) & ControlChars.NewLine
+                tempStr = tempStr & String.Format(" R^2 = {0}", SquareR) & ControlChars.NewLine
+                tempStr = tempStr & String.Format(" AIC = {0}", AIC) & ControlChars.NewLine
+                tempStr = tempStr & String.Format(" BIC = {0}", BIC) & ControlChars.NewLine
+                Return tempStr
+                'Return MyBase.ToString()
+            End Function
+        End Class
+
+        ''' <summary>
         ''' evaluate
         ''' </summary>
-        ''' <param name="w"></param>
-        ''' <param name="ao_squareR"></param>
-        ''' <param name="ao_aic"></param>
-        ''' <param name="ao_bic"></param>
         ''' <remarks></remarks>
-        Private Sub EvaluateRegression(ByVal w() As Double, ByVal CorrectDataVector() As Double, ByVal TrainDataMatrix()() As Double, _
-                                       ByRef ao_squareR As Double, ByRef ao_aic As Double, ByRef ao_bic As Double)
-            'Calc R^2
+        Private Function EvaluateRegression(ByVal w() As Double, ByVal CorrectDataVector() As Double, ByVal TrainDataMatrix()() As Double) As clsEvaluate
+            Dim retEval = New clsEvaluate()
+
+            'Calc RSS(residual sum of square)
+            Dim rss As Double = 0
+            If TrainDataMatrix Is Nothing OrElse TrainDataMatrix.Count = 0 Then
+                Dim predictValue = w(0)
+                For i As Integer = 0 To Me.CorrectDataVector.Count - 1
+                    Dim temp = CorrectDataVector(i) - predictValue
+                    rss += temp * temp
+                Next
+            Else
+                For i As Integer = 0 To Me.CorrectDataVector.Count - 1
+                    Dim predictValue = clsLinearRegression.Predict(w, TrainDataMatrix(i))
+                    Dim temp = CorrectDataVector(i) - predictValue
+                    rss += temp * temp
+                Next
+            End If
+            retEval.RSS = rss
+
+            'Calc R^2 決定係数
             Dim tempValue As Double = 0
             Dim correctAvg As Double = CorrectDataVector.Sum / CorrectDataVector.Count
             For i As Integer = 0 To CorrectDataVector.Count - 1
                 Dim temp = CorrectDataVector(i) - correctAvg
                 tempValue += temp * temp
             Next
-
-            'Calc RSS(residual sum of square)
-            Dim rss As Double = 0
-            Dim rsArray(TrainDataMatrix.Count - 1) As Double
-            For i As Integer = 0 To Me.CorrectDataVector.Count - 1
-                Dim predictValue = clsLinearRegression.Predict(w, TrainDataMatrix(i))
-                Dim temp = CorrectDataVector(i) - predictValue
-                rsArray(i) = temp * temp
-                rss += rsArray(i)
-            Next
-
-            'R^2 重相関係数
-            ao_squareR = 1 - (rss / tempValue)
+            retEval.SquareR = 1 - (rss / tempValue)
 
             'AIC = n*ln(RSS/n)+2*K
             Dim n = CorrectDataVector.Count
-            Dim k = TrainDataMatrix(0).Count + 1
-            ao_aic = n * Math.Log(rss / n) + 2 * k
-            ao_bic = n * Math.Log(rss / n) + Math.Log(n) * k
-        End Sub
+            Dim k = w.Count + 1
+            retEval.AIC = n * Math.Log(rss / n) + 2 * k
+            retEval.BIC = n * Math.Log(rss / n) + Math.Log(n) * k
+
+            Return retEval
+        End Function
 
         ''' <summary>
         ''' restruct data matrix
@@ -267,28 +465,46 @@ Namespace Regression
                 Return Nothing
             End If
 
+            'Array.Sort(ai_useIndex)
             Dim fldCount As Integer = Me.TrainDataMatrix(0).Count
             Dim recCount As Integer = Me.TrainDataMatrix.Count
             Dim retDataMat = New Double(recCount - 1)() {}
-            Array.Sort(ai_useIndex)
 
-            With Nothing
-                Dim useIndexArray As New List(Of Integer)
-                For i As Integer = 0 To ai_useIndex.Count - 1
-                    useIndexArray.Add(ai_useIndex(i))
+            For i As Integer = 0 To recCount - 1
+                Dim tempArray(ai_useIndex.Count - 1) As Double
+                Dim j As Integer = 0
+                For Each useIndex In ai_useIndex
+                    tempArray(j) = Me.TrainDataMatrix(i)(useIndex)
+                    j += 1
                 Next
-                For i As Integer = 0 To recCount - 1
-                    Dim tempArray(ai_useIndex.Count - 1) As Double
-                    Dim j As Integer = 0
-                    For Each useIndex In useIndexArray
-                        tempArray(j) = Me.TrainDataMatrix(i)(useIndex)
-                        j += 1
-                    Next
-                    retDataMat(i) = tempArray
-                Next
-            End With
+                retDataMat(i) = tempArray
+            Next
 
             Return retDataMat
+        End Function
+
+        ''' <summary>
+        ''' restruct field by useindex
+        ''' </summary>
+        ''' <param name="ai_useIndex"></param>
+        ''' <returns></returns>
+        ''' <remarks></remarks>
+        Private Function RestructFieldNames(ByVal ai_useIndex() As Integer) As String()
+            'check
+            If TrainDataMatrix Is Nothing OrElse CorrectDataVector Is Nothing Then
+                Return Nothing
+            End If
+
+            'Array.Sort(ai_useIndex)
+            Dim fldCount As Integer = Me.TrainDataMatrix(0).Count
+            Dim retFiledlNames(ai_useIndex.Count - 1) As String
+            Dim i As Integer = 0
+            For Each useIndex In ai_useIndex
+                retFiledlNames(i) = Me.TrainDataFields(useIndex)
+                i += 1
+            Next
+
+            Return retFiledlNames
         End Function
 #End Region
     End Class
