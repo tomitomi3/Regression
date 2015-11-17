@@ -12,11 +12,11 @@ Module Module1
         mat.OutputDatasetProperty()
 
         'set target
-        mat.TargetIndex = 13
+        mat.TargetIndex = 3 '13
         mat.CreateDataMatrix()
         'create data matrix without higher correlation variable
         mat.CheckCorrelation(False)
-        mat.WithoutCorreationCriteria = 0.9
+        mat.WithoutCorreationCriteria = 0.99
         mat.CheckRemoveIndexByCorrelation(True)
         mat.CreateDataMatrix()
 

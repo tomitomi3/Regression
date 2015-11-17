@@ -153,8 +153,13 @@ Namespace Regression
                     For Each i In iterateIndex
                         Dim tempUseIndexArray = useIndexArray.ToList()
                         tempUseIndexArray.RemoveAt(tempUseIndexArray.IndexOf(i)) 'delete
-                        Dim tempDataMat()() As Double = RestructDataMatrix(tempUseIndexArray.ToArray())
-                        tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                        Dim tempDataMat()() As Double = Nothing
+                        If useIndexArray.Count = 1 Then
+                            tempWeight = {Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}
+                        Else
+                            tempDataMat = RestructDataMatrix(tempUseIndexArray.ToArray())
+                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                        End If
 
                         'Validate
                         Dim temp = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat)
