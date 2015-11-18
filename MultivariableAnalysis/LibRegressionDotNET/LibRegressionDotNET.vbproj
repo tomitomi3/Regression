@@ -89,6 +89,10 @@
       <HintPath>..\packages\CsvHelper.2.13.2.0\lib\net40-client\CsvHelper.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="LibOptimization, Version=1.8.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\LibOptimization.1.8.0\lib\net40\LibOptimization.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="MathNet.Numerics, Version=3.8.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\MathNet.Numerics.3.8.0\lib\net40\MathNet.Numerics.dll</HintPath>
       <Private>True</Private>
@@ -112,9 +116,8 @@
     <Import Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Regression\clsLassoEstimate.vb" />
     <Compile Include="Math\clsUtil.vb" />
-    <Compile Include="Regression\clsLassoRegression.vb" />
-    <Compile Include="Regression\clsRidgeRegression.vb" />
     <Compile Include="Regression\clsLinearRegression.vb" />
     <Compile Include="Regression\clsDataMatrixCtrl.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />

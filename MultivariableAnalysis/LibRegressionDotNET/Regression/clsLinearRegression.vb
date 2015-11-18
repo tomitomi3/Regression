@@ -46,6 +46,18 @@ Namespace Regression
             ''' <summary>変数減少法（変数0からスタート）</summary>
             StepwiseSelection
         End Enum
+
+        Public Property RegressionMethod As EnumRegressionMethod = EnumRegressionMethod.LinearRegression
+
+        Public Enum EnumRegressionMethod
+            LinearRegression
+            RidgeRegression
+            LassoRegression
+        End Enum
+
+        Public Property RidgeParameter As Double = 1
+
+        Public Property ShrinkageParameter As Double = 1
 #End Region
 
 #Region "Public"
@@ -85,6 +97,36 @@ Namespace Regression
                 End If
             End If
 
+            If Me.RegressionMethod = EnumRegressionMethod.RidgeRegression Then
+                'Ridge
+                '最小二乗法 (X^T*X)-1*X^T*Y
+                Dim y = CreateMatrix.DenseOfColumnArrays(CorrectDataVector)
+                Dim x = CreateMatrix.Dense(Of Double)(TrainDataMatrix.Count, fldCount + 1)
+                For i = 0 To Me.TrainDataMatrix.Count - 1
+                    Dim tempRow(fldCount) As Double
+                    tempRow(0) = 1.0
+                    For j As Integer = 0 To fldCount - 1
+                        tempRow(j + 1) = Me.TrainDataMatrix(i)(j)
+                    Next
+                    x.SetRow(i, tempRow)
+                Next
+                Dim iMat = CreateMatrix.DenseIdentity(Of Double)(x.ColumnCount)
+                Dim xx = (x.Transpose() * x + RidgeParameter * iMat).Inverse() * x.Transpose() * y
+                Me.weightVector = xx.Column(0).ToArray()
+                Return
+            ElseIf Me.RegressionMethod = EnumRegressionMethod.LassoRegression Then
+                'LASSO
+                Dim lasso = New clsLassoEstimate()
+                lasso.TrainDataMatrix = TrainDataMatrix
+                lasso.CorretDataVector = CorrectDataVector
+                lasso.ShrinkageParameter = Me.ShrinkageParameter
+                Dim optimizer = New LibOptimization.Optimization.clsOptDE(lasso)
+                optimizer.Init()
+                optimizer.DoIteration()
+                Me.weightVector = optimizer.Result.ToArray()
+                Return
+            End If
+
             '------------------------------------------------------------
             'variable selection
             '------------------------------------------------------------
@@ -95,7 +137,8 @@ Namespace Regression
             ElseIf Me.VariableSelection = EnumVariableSelection.ForwardSelection Then
                 'use variable selection ForwardSelection
                 'non variable
-                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}, Me.CorrectDataVector, Nothing)
+                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count},
+Me.CorrectDataVector, Nothing)
 
                 'add variable
                 While (True)
@@ -105,7 +148,8 @@ Namespace Regression
                         Dim tempUseIndexArray = useIndexArray.ToList()
                         tempUseIndexArray.Add(i) 'add
                         Dim tempDataMat()() As Double = RestructDataMatrix(tempUseIndexArray.ToArray())
-                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True,
+LinearRegression.DirectRegressionMethod.QR)
 
                         'Validate
                         Dim temp = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat)
@@ -138,11 +182,13 @@ Namespace Regression
                 'update
                 Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
                 Me.TrainDataFields = RestructFieldNames(useIndexArray.ToArray())
-                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.
+QR)
             ElseIf Me.VariableSelection = EnumVariableSelection.BackwardElimination Then
                 'use variable selection BackwardElimination
                 'first all use variable
-                Dim tempWeight() As Double = Fit.MultiDim(TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                Dim tempWeight() As Double = Fit.MultiDim(TrainDataMatrix, CorrectDataVector, True,
+LinearRegression.DirectRegressionMethod.QR)
                 Dim bestEval = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, Nothing)
 
                 'delete variable
@@ -158,7 +204,8 @@ Namespace Regression
                             tempWeight = {Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}
                         Else
                             tempDataMat = RestructDataMatrix(tempUseIndexArray.ToArray())
-                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.
+QR)
                         End If
 
                         'Validate
@@ -192,11 +239,13 @@ Namespace Regression
                 'update
                 Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
                 Me.TrainDataFields = RestructFieldNames(useIndexArray.ToArray())
-                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.
+QR)
             ElseIf Me.VariableSelection = EnumVariableSelection.StepwiseSelection Then
                 'use variable selection StepwiseSelection
                 'non variable
-                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}, Me.CorrectDataVector, Nothing)
+                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count},
+Me.CorrectDataVector, Nothing)
 
                 'stepwise
                 While (True)
@@ -208,7 +257,8 @@ Namespace Regression
                         Dim tempUseIndexArray = useIndexArray.ToList()
                         tempUseIndexArray.Add(i) 'add
                         Dim tempDataMat()() As Double = RestructDataMatrix(tempUseIndexArray.ToArray())
-                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True,
+LinearRegression.DirectRegressionMethod.QR)
 
                         'Validate
                         Dim temp = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat)
@@ -244,7 +294,8 @@ Namespace Regression
                             tempWeight = {Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}
                         Else
                             tempDataMat = RestructDataMatrix(tempUseIndexArray.ToArray())
-                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.
+QR)
                         End If
 
                         'Validate
@@ -281,7 +332,8 @@ Namespace Regression
                 'update
                 Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
                 Me.TrainDataFields = RestructFieldNames(useIndexArray.ToArray())
-                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
+                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.
+QR)
             End If
 
             ''最小二乗法 (X^T*X)-1*X^T*Y
@@ -324,7 +376,7 @@ Namespace Regression
 
             'Result
             Console.WriteLine("Result:")
-            Console.WriteLine(" w0,{0}", weightVector(0))
+            Console.WriteLine(" w0,,{0}", weightVector(0))
             For i As Integer = 1 To weightVector.Count - 1
                 Console.WriteLine(" w{0},{1},{2}", i, dataField(i - 1), weightVector(i))
             Next
@@ -368,7 +420,7 @@ Namespace Regression
             Public UseIndexArray() As Integer = Nothing
 
             Public Sub New()
-
+                'nop
             End Sub
 
             Public Sub New(ByVal ai_aic As Double, ByVal ai_bic As Double, ByVal ai_r As Double, ByVal ai_ar() As Integer)
@@ -417,7 +469,9 @@ Namespace Regression
         ''' evaluate
         ''' </summary>
         ''' <remarks></remarks>
-        Private Function EvaluateRegression(ByVal w() As Double, ByVal CorrectDataVector() As Double, ByVal TrainDataMatrix()() As Double) As clsEvaluate
+        Private Function EvaluateRegression(ByVal w() As Double, _
+                                            ByVal CorrectDataVector() As Double, _
+                                            ByVal TrainDataMatrix()() As Double) As clsEvaluate
             Dim retEval = New clsEvaluate()
 
             'Calc RSS(residual sum of square)
