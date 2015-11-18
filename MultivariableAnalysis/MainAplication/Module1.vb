@@ -17,7 +17,7 @@ Module Module1
         mat.CreateDataMatrix()
         'create data matrix without higher correlation variable
         mat.CheckCorrelation(False)
-        mat.WithoutCorreationCriteria = 0.99
+        mat.WithoutCorreationCriteria = 0.9
         mat.CheckRemoveIndexByCorrelation(True)
         mat.CreateDataMatrix()
 
@@ -41,6 +41,7 @@ Module Module1
             r.DoRegression()
             r.OutputRegressionResult()
         Next
+
         Console.WriteLine("===============================")
         Console.WriteLine("Ridge")
         Console.WriteLine("===============================")

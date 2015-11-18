@@ -111,7 +111,7 @@ Namespace Regression
                     x.SetRow(i, tempRow)
                 Next
                 Dim iMat = CreateMatrix.DenseIdentity(Of Double)(x.ColumnCount)
-                Dim xx = (x.Transpose() * x + RidgeParameter * iMat).Inverse() * x.Transpose() * y
+                Dim xx = (x.TransposeThisAndMultiply(x) + RidgeParameter * iMat).Inverse() * x.TransposeThisAndMultiply(y)
                 Me.weightVector = xx.Column(0).ToArray()
                 Return
             ElseIf Me.RegressionMethod = EnumRegressionMethod.LassoRegression Then
