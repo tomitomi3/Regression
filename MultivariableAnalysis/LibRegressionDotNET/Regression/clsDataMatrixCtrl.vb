@@ -372,7 +372,7 @@ Namespace Regression
                 End If
             End If
 
-            'cal Var-CoVarMatrix and CorrelationMatrix
+            'calc Var-CoVarMatrix and CorrelationMatrix
             Me.varCovarMatrix = Me.CalcVarianceCovarianceMatrix()
             Me.correlationMatrix = Me.CalcCorrelationMatrix()
 

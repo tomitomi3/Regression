@@ -137,8 +137,7 @@ Namespace Regression
             ElseIf Me.VariableSelection = EnumVariableSelection.ForwardSelection Then
                 'use variable selection ForwardSelection
                 'non variable
-                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count},
-Me.CorrectDataVector, Nothing)
+                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}, Me.CorrectDataVector, Nothing)
 
                 'add variable
                 While (True)
@@ -148,8 +147,7 @@ Me.CorrectDataVector, Nothing)
                         Dim tempUseIndexArray = useIndexArray.ToList()
                         tempUseIndexArray.Add(i) 'add
                         Dim tempDataMat()() As Double = RestructDataMatrix(tempUseIndexArray.ToArray())
-                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True,
-LinearRegression.DirectRegressionMethod.QR)
+                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
 
                         'Validate
                         Dim temp = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat)
@@ -182,13 +180,11 @@ LinearRegression.DirectRegressionMethod.QR)
                 'update
                 Me.TrainDataMatrix = RestructDataMatrix(useIndexArray.ToArray())
                 Me.TrainDataFields = RestructFieldNames(useIndexArray.ToArray())
-                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.
-QR)
+                Me.weightVector = Fit.MultiDim(Me.TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
             ElseIf Me.VariableSelection = EnumVariableSelection.BackwardElimination Then
                 'use variable selection BackwardElimination
                 'first all use variable
-                Dim tempWeight() As Double = Fit.MultiDim(TrainDataMatrix, CorrectDataVector, True,
-LinearRegression.DirectRegressionMethod.QR)
+                Dim tempWeight() As Double = Fit.MultiDim(TrainDataMatrix, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
                 Dim bestEval = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, Nothing)
 
                 'delete variable
@@ -204,8 +200,7 @@ LinearRegression.DirectRegressionMethod.QR)
                             tempWeight = {Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}
                         Else
                             tempDataMat = RestructDataMatrix(tempUseIndexArray.ToArray())
-                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.
-QR)
+                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
                         End If
 
                         'Validate
@@ -244,8 +239,7 @@ QR)
             ElseIf Me.VariableSelection = EnumVariableSelection.StepwiseSelection Then
                 'use variable selection StepwiseSelection
                 'non variable
-                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count},
-Me.CorrectDataVector, Nothing)
+                Dim bestEval = Me.EvaluateRegression({Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}, Me.CorrectDataVector, Nothing)
 
                 'stepwise
                 While (True)
@@ -257,8 +251,7 @@ Me.CorrectDataVector, Nothing)
                         Dim tempUseIndexArray = useIndexArray.ToList()
                         tempUseIndexArray.Add(i) 'add
                         Dim tempDataMat()() As Double = RestructDataMatrix(tempUseIndexArray.ToArray())
-                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True,
-LinearRegression.DirectRegressionMethod.QR)
+                        Dim tempWeight() As Double = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
 
                         'Validate
                         Dim temp = Me.EvaluateRegression(tempWeight, Me.CorrectDataVector, tempDataMat)
@@ -294,8 +287,7 @@ LinearRegression.DirectRegressionMethod.QR)
                             tempWeight = {Me.CorrectDataVector.Sum() / Me.CorrectDataVector.Count}
                         Else
                             tempDataMat = RestructDataMatrix(tempUseIndexArray.ToArray())
-                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.
-QR)
+                            tempWeight = Fit.MultiDim(tempDataMat, CorrectDataVector, True, LinearRegression.DirectRegressionMethod.QR)
                         End If
 
                         'Validate
@@ -356,6 +348,19 @@ QR)
         End Sub
 
         ''' <summary>
+        ''' Result
+        ''' </summary>
+        ''' <returns></returns>
+        ''' <remarks></remarks>
+        Public Function Result() As clsEvaluate
+            Dim retEval = Me.EvaluateRegression(Me.weightVector, Me.CorrectDataVector, Me.TrainDataMatrix)
+            retEval.Weight = Me.Weight.ToArray()
+            retEval.RidgeParameter = Me.RidgeParameter
+            retEval.LassoShrinkageParameter = Me.ShrinkageParameter
+            Return retEval
+        End Function
+
+        ''' <summary>
         ''' regression result
         ''' </summary>
         ''' <remarks></remarks>
@@ -380,6 +385,13 @@ QR)
             For i As Integer = 1 To weightVector.Count - 1
                 Console.WriteLine(" w{0},{1},{2}", i, dataField(i - 1), weightVector(i))
             Next
+            If Me.RegressionMethod = EnumRegressionMethod.RidgeRegression Then
+                Console.WriteLine("Parameter")
+                Console.WriteLine(" RidgeParameter:{0}", Me.RidgeParameter)
+            ElseIf Me.RegressionMethod = EnumRegressionMethod.LassoRegression Then
+                Console.WriteLine("Parameter")
+                Console.WriteLine(" LassoParameter:{0}", Me.ShrinkageParameter)
+            End If
             Console.WriteLine("")
 
             'Validate
@@ -411,13 +423,17 @@ QR)
         ''' 評価値格納クラス
         ''' </summary>
         ''' <remarks></remarks>
-        Private Class clsEvaluate
+        Public Class clsEvaluate
             Implements IComparable
+            Public Property RSS As Double = 0
+            Public Property SquareR As Double = 0
             Public Property AIC As Double = 0
             Public Property BIC As Double = 0
-            Public Property SquareR As Double = 0
-            Public Property RSS As Double = 0
             Public UseIndexArray() As Integer = Nothing
+            Public RidgeParameter As Double = -1
+            Public LassoShrinkageParameter As Double = -1
+            Public Weight() As Double = Nothing
+            Public Label As String = String.Empty
 
             Public Sub New()
                 'nop
@@ -462,6 +478,33 @@ QR)
                 tempStr = tempStr & String.Format(" BIC = {0}", BIC) & ControlChars.NewLine
                 Return tempStr
                 'Return MyBase.ToString()
+            End Function
+
+            Public Function ToCsv() As String
+                Dim retEval As String = ""
+                retEval &= String.Format("{0},", Label)
+                retEval &= String.Format("{0},", RSS)
+                retEval &= String.Format("{0},", SquareR)
+                retEval &= String.Format("{0},", AIC)
+                retEval &= String.Format("{0},", BIC)
+                retEval &= String.Format("{0},", RidgeParameter)
+                retEval &= String.Format("{0},", LassoShrinkageParameter)
+                For Each w In Weight
+                    retEval &= String.Format("{0},", w)
+                Next
+                Return retEval
+            End Function
+
+            Public Function ToCsvHeader() As String
+                Dim retEval As String = ""
+                retEval &= String.Format("Label,")
+                retEval &= String.Format("RSS,")
+                retEval &= String.Format("R^2,")
+                retEval &= String.Format("AIC,")
+                retEval &= String.Format("BIC,")
+                retEval &= String.Format("RidgeParameter,")
+                retEval &= String.Format("LassoShrinkageParameter")
+                Return retEval
             End Function
         End Class
 
